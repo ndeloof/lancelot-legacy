@@ -1,5 +1,7 @@
 # Lancelot, a docker API armor
 
+![lancelot](lancelot.jpg)
+
 Lancelot is a proxy for docker API to filter API calls and only let you use a minimal set of commands and options.
 Main idea is to give you access to docker daemon from a container, but not give up with security and isolation.
 
