@@ -14,6 +14,7 @@ Lancelot uses [docker/docker/client](https://github.com/docker/docker/tree/maste
 daemon.  
 
 ## Why this name
-_Lancelot du Lac_ is both a great persona for armored security and docker ecosystem aquatic references, isn't it ?
+[Sir _Lancelot du Lac_](https://en.wikipedia.org/wiki/Lancelot) from Arthurian legend is  
+is both a great persona for armored security and an aquatic references required for anything related to Docker, isn't it ?
  
  
