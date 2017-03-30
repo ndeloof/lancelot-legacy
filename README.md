@@ -38,6 +38,9 @@ commands from white-list, as well as access resource from a validated set of pat
 Lancelot uses [docker/docker/client](https://github.com/docker/docker/tree/master/client) to access the actual docker
 daemon.  
 
+Golang having no correct way to do this job (sic) dependencies are managed using [vndr](https://github.com/LK4D4/vndr). 
+`vendor` directory is committed in repo anyway to make it easier checkout the code and quickly get it to run.
+
 ## Why this name
 [Sir _Lancelot du Lac_](https://en.wikipedia.org/wiki/Lancelot) from Arthurian legend is both a great persona for 
 armored security and an aquatic references required for anything related to Docker, isn't it ?

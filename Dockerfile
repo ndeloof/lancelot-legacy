@@ -1,7 +1,7 @@
 FROM golang:1.8
 
 COPY . $GOPATH/src/github.com/cloudbees/lancelot/
-RUN cd $GOPATH/src/github.com/cloudbees/lancelot && go get && go build
+RUN go build github.com/cloudbees/lancelot
 
 EXPOSE 2375
-ENTRYPOINT ['lancelot']
+ENTRYPOINT lancelot
