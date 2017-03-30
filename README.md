@@ -26,8 +26,17 @@ docker API one can bind to a build container. As a side effect, container doesn'
                                    +----------------+
 ``` 
  
-Lancelot itself can run as a container deployed with the build container, linked together, with `DOCKER_HOST` set so
-build container will use lancelot as docker API endpoint.
+Lancelot itself can run as a container deployed with the build container, linked together.
+
+1. start lancelot container, giving him access to underlying docker daemon :
+ 
+   `docker run -it --name lancelot -v /var/run/docker.sock:/var/run/docker.sock cloudbees/lancelot`
+ 
+1. start build container linked to lancelot and with `DOCKER_HOST` set so build container will use lancelot as docker API endpoint.
+
+   `docker run --link lancelot --env DOCKER_HOST=localhost:2375 ... jenkins/some-slave-image` 
+ 
+1. enjoy 
  
 
 ## Implementation
