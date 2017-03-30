@@ -72,6 +72,7 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 		Privileged: false,
 		AutoRemove: hostConfig.AutoRemove,
 		Binds: nil, // prevent bind mount
+		VolumesFrom: hostConfig.VolumesFrom,
 	}, networkingConfig, name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

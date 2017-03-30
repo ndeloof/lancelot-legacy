@@ -20,6 +20,7 @@ func (p *Proxy) RegisterRoutes(r *mux.Router) {
 	r.Path("/v{version:[0-9.]+}/events").Methods("GET").HandlerFunc(p.events)
 
 	r.Path("/v{version:[0-9.]+}/images/{name:.*}/json").Methods("GET").HandlerFunc(p.imageInspect)
+	r.Path("/v{version:[0-9.]+}/images/create").Methods("POST").HandlerFunc(p.imagesCreate)
 
 	r.Path("/v{version:[0-9.]+}/containers/{name:.*}/json").Methods("GET").HandlerFunc(p.containerInspect)
 	r.Path("/v{version:[0-9.]+}/containers/create").Methods("POST").HandlerFunc(p.containerCreate)
