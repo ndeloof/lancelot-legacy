@@ -17,7 +17,7 @@ When you run inside a container (let's say, to run a jenkins build) and at some 
 docker-related (for sample, build a new docker iamge from a `Dockerfile` or run a docker container).
 
 Classic options are
-* [Docker in Docker](https://github.com/jpetazzo/dind) which own creator tell you []NOT TO USE](https://jpetazzo.github.io/2015/09/03/do-not-use-docker-in-docker-for-ci/)
+* [Docker in Docker](https://github.com/jpetazzo/dind) which own creator tell you [NOT TO USE](https://jpetazzo.github.io/2015/09/03/do-not-use-docker-in-docker-for-ci/)
 * Side containers, i.e. run those other containers on the same Docker Host sharing volume / network / ... depending your use-case.
 
 The later is the most recommended one, and require to grant access to the docker daemon. In most case on do bind mount 
