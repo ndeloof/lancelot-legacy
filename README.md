@@ -9,6 +9,55 @@ Lancelot is developed with [docker-pipeline](https://wiki.jenkins-ci.org/display
 to drive Docker API usage, so it mostly focus on _only_ supporting the required API for docker-pipeline to support
 `docker.inside`. More API might be supported in future for other usages, for example to support `docker.build`. 
 
+## Why ?
+
+### Why access docker API ?
+
+When you run inside a container (let's say, to run a jenkins build) and at some point want to rdo something 
+docker-related (for sample, build a new docker iamge from a `Dockerfile` or run a docker container).
+
+Classic options are
+* [Docker in Docker](https://github.com/jpetazzo/dind) which own creator tell you []NOT TO USE](https://jpetazzo.github.io/2015/09/03/do-not-use-docker-in-docker-for-ci/)
+* Side containers, i.e. run those other containers on the same Docker Host sharing volume / network / ... depending your use-case.
+
+The later is the most recommended one, and require to grant access to the docker daemon. In most case on do bind mount 
+the docker daemon socket `/var/run/docker.sock` inside build container, so it can run docker commands using the standard
+docker API or cli.
+
+### Impacts on security
+
+BUT there's a major drawback doing this. Having access to docker socket, one become root on the host, breaking all
+barriers set by docker containerization. Typically, running `docker run -v /:/target ubuntu bash` one can access
+everything on host filesystem as root, without any restriction.
+
+This is bad in general circumstance, but get worst when deployed on a cluster, as the node may host some cluster-wide
+secret, like AWS access keys or Mesos API secrets. ** Doing this in such a cluster just throws away any security**
+
+### Impacts on efficiency 
+ 
+One can consider the cluster only host nice people who won't try to abuse permissions (sic). There's anyway another side
+effect. Cluster is managed by an orchestrator responsible to find the best place to run tasks. So if you triggger a 
+build with 2Gb requirement, your mesos / kubernetes / ecs / swarm cluster orchestrator will select a node with at least
+2Gb memory available. Your container is configured with a 2Gb max memory limit (using Linux control groups). 
+ 
+But if your container do run additional containers, they will also consume resources without your orchestrator to know 
+about this. As a result, orchestrator may over-allocate a node because some container running there aren't created 
+under its control.
+
+This might result in unexpected build termination with Out of Memory Error.
+
+
+## Proposed fix / workaround
+
+Lancelot exposes docker API to containers but prevent use of dangerous APIs or parameters. Typically, it prevent running
+privileged containers, bind mount from filesystem, etc. Filtering for API parameter allows to define fine grained white 
+lists of allowed operations, to support a well defined set of use-cases.
+
+Lancelot also force all sidecar containers to run within the _same_ cgroup as the main container. So if the orchestrator 
+allocated 2Gb for a task, and configured cgroup with 2Gb memory limit, all containers will share this limit, and won't
+be able to allocate more. 
+
+
 ## Usage and Architecture
 
 Lancelot is a standalone program to run on docker host and configure so it can access the docker daemon. It exposes
