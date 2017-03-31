@@ -11,6 +11,8 @@ import (
 	"github.com/gorilla/handlers"
 	"golang.org/x/net/context"
 	"github.com/cloudbees/lancelot/proxy"
+	"regexp"
+	"bufio"
 )
 
 func main() {
@@ -22,6 +24,20 @@ func main() {
 	p := &proxy.Proxy{}
 	p.SetClient(client)
 
+
+	inFile, _ := os.Open("/proc/self/cgroup")
+	defer inFile.Close()
+
+	pids := regexp.MustCompile(`^[0-9]+:pids:/docker/([0-9a-z]+)`)
+	scanner := bufio.NewScanner(inFile)
+	scanner.Split(bufio.ScanLines)
+	for scanner.Scan() {
+		cgroup := pids.FindString(scanner.Text())
+		if cgroup != "" {
+			p.SetCGroup(cgroup)
+		}
+
+	}
 
 	// subscribe to SIGINT signals
 	stopChan := make(chan os.Signal)

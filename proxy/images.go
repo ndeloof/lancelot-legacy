@@ -37,8 +37,6 @@ func (p *Proxy) imagesCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	image := r.Form.Get("fromImage")
-	output := ioutils.NewWriteFlusher(w)
-	defer output.Close()
 
 
 	if image == "" {
@@ -64,5 +62,7 @@ func (p *Proxy) imagesCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
 	io.Copy(output, reader)
 }

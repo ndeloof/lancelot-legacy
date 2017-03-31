@@ -12,6 +12,7 @@ import (
 
 type Proxy struct {
 	client client.APIClient
+	cgroup string  // Our current cgroup, we will share with any container we run
 }
 
 func (p *Proxy) RegisterRoutes(r *mux.Router) {
@@ -31,6 +32,8 @@ func (p *Proxy) RegisterRoutes(r *mux.Router) {
 	r.Path("/v{version:[0-9.]+}/exec/{execId:.*}/resize").Methods("POST").HandlerFunc(p.containerExecResize)
 	r.Path("/v{version:[0-9.]+}/exec/{execId:.*}/json").Methods("GET").HandlerFunc(p.execInspect)
 	r.Path("/v{version:[0-9.]+}/containers/{name:.*}").Methods("DELETE").HandlerFunc(p.containerDelete)
+
+	r.Path("/v{version:[0-9.]+}/build").Methods("POST").HandlerFunc(p.build)
 }
 
 func (p *Proxy) SetClient(c client.APIClient) {
@@ -42,7 +45,6 @@ func (p *Proxy) SetClient(c client.APIClient) {
 	}
 	fmt.Println("docker daemon running " + i.ServerVersion)
 
-
 	ping, err := p.client.Ping(context.Background())
 	if err != nil {
 		panic(err)
@@ -52,7 +54,10 @@ func (p *Proxy) SetClient(c client.APIClient) {
 		fmt.Println("target docker daemon exposes API %w but proxy was designed for API version %w", ping.APIVersion, api.DefaultVersion)
 		panic(errors.New("oups"))
 	}
+}
 
+func (p *Proxy) SetCGroup(cgroup string) {
+	p.cgroup = cgroup
 }
 
 
