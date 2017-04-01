@@ -87,7 +87,7 @@ Lancelot itself can run as a container deployed with the build container, linked
    
    for sample, I'm using a permanent agent connect via ssh on port 2222 to a dockerized ssh slave (with docker cli installed) :
    
-   `docker run -t --link lancelot --env DOCKER_HOST=localhost:2375 -v /Users/nicolas/jenkins-slave:/home/jenkins -p 2222:22 ndeloof/jenkins-ssh-slave-with-docker-cli  "ssh-rsa ...=="`
+   `docker run -t --link lancelot --env DOCKER_HOST=localhost:2375 -v slave:/home/jenkins -p 2222:22 ndeloof/jenkins-ssh-slave-with-docker-cli  "ssh-rsa ...=="`
  
 1. enjoy 
  
