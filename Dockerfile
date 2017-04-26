@@ -4,4 +4,4 @@ COPY . $GOPATH/src/github.com/cloudbees/lancelot/
 RUN go build github.com/cloudbees/lancelot
 
 EXPOSE 2375
-CMD $GOPATH/lancelot
+ENTRYPOINT $GOPATH/lancelot

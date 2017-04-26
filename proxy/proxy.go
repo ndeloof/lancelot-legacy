@@ -50,8 +50,8 @@ func (p *Proxy) SetClient(c client.APIClient) {
 		panic(err)
 	}
 
-	if versions.GreaterThanOrEqualTo(ping.APIVersion, api.DefaultVersion) {
-		fmt.Println("target docker daemon exposes API %w but proxy was designed for API version %w", ping.APIVersion, api.DefaultVersion)
+	if versions.LessThan(ping.APIVersion, api.DefaultVersion) {
+		fmt.Printf("target docker daemon exposes API %s but proxy was designed for API version %s\n", ping.APIVersion, api.DefaultVersion)
 		panic(errors.New("oups"))
 	}
 }
