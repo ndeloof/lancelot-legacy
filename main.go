@@ -32,9 +32,10 @@ func main() {
 	p.SetClient(client)
 
 	me, err := selfContainerId()
-	if err == nil {
-		p.SetCGroup("/docker/" + me)
+	if err != nil {
+		panic(err)
 	}
+	p.SetCGroup("/docker/" + me)
 
 
 	// subscribe to SIGINT signals
@@ -71,13 +72,19 @@ func main() {
 	srv.Shutdown(ctx)
 }
 
-func runSidecarContainer(args []string, parent string) error {
+/**
+ * start first sidecar container.
+ * lancelot can receive the exact same arguments as a `docker run` command.
+ */
+func runSidecarContainer(args []string, lancelot string) error {
 	fmt.Printf("Starting sidecar container %v\n", args)
+
+	// following code is mostly a copy paste from github.com/docker/docker/cmd/docker/docker.go:main()
 	stdin, stdout, stderr := term.StdStreams()
 	logrus.SetOutput(stderr)
-
 	dockerCli := command.NewDockerCli(stdin, stdout, stderr)
 
+	// Initialize CLI, configured to access docker socket directly
 	dockerCli.Initialize(&flags.ClientOptions{
 		Common: &flags.CommonOptions{
 			Hosts: []string { "unix:///var/run/docker.sock" },
@@ -85,18 +92,22 @@ func runSidecarContainer(args []string, parent string) error {
 		},
 	})
 
+	// Use a RunCommand to parse command line args
 	cmd := c.NewRunCommand(dockerCli)
 
-	if parent != "" {
-		fmt.Printf("Force cgroup parent %s\n", parent)
-		// force new container to run within the same cgroup hierarchy
-		args = append([]string{"--cgroup-parent", parent}, args...)
-	}
+	// force new container to run within the same cgroup hierarchy
+	args = append([]string{"--cgroup-parent", lancelot, "--link", lancelot, "--env", "DOCKER_HOST="+lancelot}, args...)
+
 	cmd.SetArgs(args)
 
+	// run forrest, run
 	return cmd.Execute()
 }
 
+/**
+ * detect container ID when lancelot is deployed as a docker container
+ * which should always be the case but for development
+ */
 func selfContainerId() (string, error) {
 
 	inFile, _ := os.Open("/proc/self/cgroup")
