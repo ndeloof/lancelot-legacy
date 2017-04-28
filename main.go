@@ -59,6 +59,7 @@ func main() {
 
 
 	args := os.Args[1:]
+	fmt.Println(args)
 	if len(args) > 0 {
 		if err := runSidecarContainer(args, me); err != nil {
 			panic(err)
