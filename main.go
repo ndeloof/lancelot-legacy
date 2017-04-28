@@ -77,7 +77,6 @@ func main() {
  * lancelot can receive the exact same arguments as a `docker run` command.
  */
 func runSidecarContainer(args []string, lancelot string) error {
-	fmt.Printf("Starting sidecar container %v\n", args)
 
 	// following code is mostly a copy paste from github.com/docker/docker/cmd/docker/docker.go:main()
 	stdin, stdout, stderr := term.StdStreams()
@@ -98,6 +97,7 @@ func runSidecarContainer(args []string, lancelot string) error {
 	// force new container to run within the same cgroup hierarchy
 	args = append([]string{"--cgroup-parent", lancelot, "--link", lancelot, "--env", "DOCKER_HOST="+lancelot}, args...)
 
+	fmt.Printf("Starting sidecar container %v\n", args)
 	cmd.SetArgs(args)
 
 	// run forrest, run
@@ -116,11 +116,10 @@ func selfContainerId() (string, error) {
 	pids := regexp.MustCompile(`^[0-9]+:pids:/docker/([0-9a-z]+)`)
 	scanner := bufio.NewScanner(inFile)
 	scanner.Split(bufio.ScanLines)
-	var me string
 	for scanner.Scan() {
-		me = pids.FindString(scanner.Text())
-		if me != "" {
-			return me, nil
+		me := pids.FindStringSubmatch(scanner.Text())
+		if len(me) > 0 {
+			return me[1], nil
 		}
 	}
 	return "", errors.New("not running inside a container")
