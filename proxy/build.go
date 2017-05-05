@@ -34,7 +34,7 @@ func (p *Proxy) build(w http.ResponseWriter, r *http.Request) {
 		CPUQuota: httputils.Int64ValueOrZero(r, "cpuquota"),
 		CPUSetCPUs: r.FormValue("cpusetcpus"),
 		CPUSetMems: r.FormValue("cpusetmems"),
-		CgroupParent: p.cgroup, // Force intermediate containers to use the same cgroup
+		CgroupParent: p.GetCgroup(), // Force intermediate containers to use the same cgroup
 		NetworkMode: r.FormValue("networkmode"),
 	}
 

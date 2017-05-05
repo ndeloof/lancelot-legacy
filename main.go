@@ -35,7 +35,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	p.SetCGroup("/docker/" + me)
+	p.SetContainer(me)
 
 
 	// subscribe to SIGINT signals

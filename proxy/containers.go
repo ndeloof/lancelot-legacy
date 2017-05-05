@@ -73,7 +73,7 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 		AutoRemove: hostConfig.AutoRemove,
 		Binds: nil, // prevent bind mount
 		VolumesFrom: hostConfig.VolumesFrom,
-		Cgroup: container.CgroupSpec(p.cgroup), // Force container to run within the same CGroup
+		Cgroup: container.CgroupSpec(p.GetCgroup()), // Force container to run within the same CGroup
 	}, networkingConfig, name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -101,6 +101,12 @@ func (p *Proxy) containerStop(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) containerExecCreate(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
+
+	// prevent docker exec into lancelot container
+	if name == p.container {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	fmt.Println(name)
 
 	if err := httputils.ParseForm(r); err != nil {

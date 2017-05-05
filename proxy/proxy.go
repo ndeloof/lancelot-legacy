@@ -12,7 +12,7 @@ import (
 
 type Proxy struct {
 	client client.APIClient
-	cgroup string  // Our current cgroup, we will share with any container we run
+	container string  // Our current cgroup, we will share with any container we run
 }
 
 func (p *Proxy) RegisterRoutes(r *mux.Router) {
@@ -56,8 +56,12 @@ func (p *Proxy) SetClient(c client.APIClient) {
 	}
 }
 
-func (p *Proxy) SetCGroup(cgroup string) {
-	p.cgroup = cgroup
+func (p *Proxy) SetContainer(cgroup string) {
+	p.container = cgroup
+}
+
+func (p *Proxy) GetCgroup() string {
+	return "/docker/" + p.container
 }
 
 
