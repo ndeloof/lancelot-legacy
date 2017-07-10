@@ -17,6 +17,13 @@ import (
 )
 
 
+var (
+	// Container our attached client has created
+	// so is legitimate fo manage
+	containers	[]string
+)
+
+
 func (p *Proxy) containerInspect(w http.ResponseWriter, r *http.Request) {
 
 	name := mux.Vars(r)["name"]
@@ -79,6 +86,9 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	containers = append(containers, body.ID)
+
 	httputils.WriteJSON(w, http.StatusCreated, &types.IDResponse{
 		ID: body.ID,
 	})

@@ -16,9 +16,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/docker/docker/pkg/term"
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/cli/command"
-	c "github.com/docker/docker/cli/command/container"
-	"github.com/docker/docker/cli/flags"
+	"github.com/docker/cli/cli/command"
+	c "github.com/docker/cli/cli/command/container"
+	"github.com/docker/cli/cli/flags"
 )
 
 
