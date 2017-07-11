@@ -24,9 +24,21 @@ var (
 )
 
 
+func (p *Proxy) ownsContainer(name string) bool {
+	for _,c := range containers {
+		if c == name {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *Proxy) containerInspect(w http.ResponseWriter, r *http.Request) {
 
 	name := mux.Vars(r)["name"]
+	if !p.ownsContainer(name) {
+		http.Error(w, "You don't own " + name, http.StatusUnauthorized)
+	}
 	json, err := p.client.ContainerInspect(context.Background(), name)
 	if err != nil {
 		if client.IsErrContainerNotFound(err) {
@@ -96,6 +108,10 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 
 func (p *Proxy) containerStart(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
+	if !p.ownsContainer(name) {
+		http.Error(w, "You don't own " + name, http.StatusUnauthorized)
+	}
+
 	p.client.ContainerStart(context.Background(), name, types.ContainerStartOptions{
 	})
 	w.WriteHeader(http.StatusNoContent)
@@ -104,6 +120,10 @@ func (p *Proxy) containerStart(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) containerStop(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
+	if !p.ownsContainer(name) {
+		http.Error(w, "You don't own " + name, http.StatusUnauthorized)
+	}
+
 	fmt.Println(name)
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -111,6 +131,9 @@ func (p *Proxy) containerStop(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) containerExecCreate(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
+	if !p.ownsContainer(name) {
+		http.Error(w, "You don't own " + name, http.StatusUnauthorized)
+	}
 
 	// prevent docker exec into lancelot container
 	if name == p.container {
@@ -260,6 +283,10 @@ func (p *Proxy) execInspect(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) containerDelete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
+	if !p.ownsContainer(name) {
+		http.Error(w, "You don't own " + name, http.StatusUnauthorized)
+	}
+
 	fmt.Println(name)
 
 	p.client.ContainerRemove(context.Background(), name, types.ContainerRemoveOptions{
