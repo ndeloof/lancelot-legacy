@@ -23,18 +23,14 @@ func (p *Proxy) ping(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (p *Proxy) info(w http.ResponseWriter, r *http.Request) {
-	info, err := p.client.Info(context.Background())
+func (p *Proxy) version(w http.ResponseWriter, r *http.Request) {
+	version, err := p.client.ServerVersion(context.Background())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	httputils.WriteJSON(w, http.StatusCreated, &types.Info{
-		ID: info.ID,
-		Isolation: "lancelot_du_lac",
-		ServerVersion: api.DefaultVersion,
-	})
+	// Shall we filter output ?
+	httputils.WriteJSON(w, http.StatusOK, version)
 }
 
 func (p *Proxy) events(w http.ResponseWriter, r *http.Request) {

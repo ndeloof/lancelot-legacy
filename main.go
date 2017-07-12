@@ -35,7 +35,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	p.SetContainer(me)
+	p.SetCgroup(me)
 
 
 	// subscribe to SIGINT signals

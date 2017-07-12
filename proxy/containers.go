@@ -14,23 +14,47 @@ import (
 	"io"
 	"strconv"
 	"net"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/filters"
 )
 
 
-var (
-	// Container our attached client has created
-	// so is legitimate fo manage
-	containers	[]string
-)
+func (p *Proxy) containerList(w http.ResponseWriter, r *http.Request) {
 
 
-func (p *Proxy) ownsContainer(name string) bool {
-	for _,c := range containers {
-		if c == name {
-			return true
+	if err := httputils.ParseForm(r); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	filter, err := filters.FromParam(r.Form.Get("filters"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	config := types.ContainerListOptions{
+		All:     httputils.BoolValue(r, "all"),
+		Size:    httputils.BoolValue(r, "size"),
+		Since:   r.Form.Get("since"),
+		Before:  r.Form.Get("before"),
+		Filters: filter,
+	}
+
+	containers, err := p.client.ContainerList(context.Background(), config)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// NOTE as an alternative, we could also add a lable to every container we create, and force a filter here
+	mine := []types.Container{}
+	for _, c := range containers {
+		if p.ownsContainer(c.ID) {
+			mine = append(mine, c)
 		}
 	}
-	return false
+
+	httputils.WriteJSON(w, http.StatusOK, mine)
 }
 
 func (p *Proxy) containerInspect(w http.ResponseWriter, r *http.Request) {
@@ -74,6 +98,41 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Binds is the old API
+	binds := hostConfig.Binds
+	for _, b := range binds {
+		if b[:1] == "/" {
+			http.Error(w, "Bind mount are not authorized", http.StatusUnauthorized)
+		}
+	}
+
+	// Mounts is the new API with explicit types
+	mounts := hostConfig.Mounts
+	for _, m := range mounts {
+		if m.Type == mount.TypeBind {
+			http.Error(w, "Bind mount are not authorized", http.StatusUnauthorized)
+		}
+	}
+
+	auth := r.Header.Get("X-Registry-Auth")
+
+	if !p.ownsImage(config.Image) {
+		fmt.Printf("Checking legitimate access to image '%s' with credentials: %s\n", config.Image, auth);
+
+		// We need to pull the image from registry to check client authentication let him access it
+		load, err := p.client.ImagePull(context.Background(), config.Image, types.ImagePullOptions{
+			All: false,
+			RegistryAuth: auth,
+		})
+		// we pull to check permission, not to actually update image
+		load.Close()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		p.addImage(config.Image)
+	}
+
 	body, err := p.client.ContainerCreate(context.Background(), &container.Config {
 		Tty: config.Tty,
 		User: config.User, // block user = root ?
@@ -90,7 +149,8 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 	}, &container.HostConfig{
 		Privileged: false,
 		AutoRemove: hostConfig.AutoRemove,
-		Binds: nil, // prevent bind mount
+		Binds: binds,
+		Mounts: mounts,
 		VolumesFrom: hostConfig.VolumesFrom,
 		Cgroup: container.CgroupSpec(p.GetCgroup()), // Force container to run within the same CGroup
 	}, networkingConfig, name)
@@ -99,7 +159,7 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	containers = append(containers, body.ID)
+	p.addContainer(body.ID)
 
 	httputils.WriteJSON(w, http.StatusCreated, &types.IDResponse{
 		ID: body.ID,
@@ -114,6 +174,43 @@ func (p *Proxy) containerStart(w http.ResponseWriter, r *http.Request) {
 
 	p.client.ContainerStart(context.Background(), name, types.ContainerStartOptions{
 	})
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (p *Proxy) containerResize(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	if !p.ownsContainer(name) {
+		http.Error(w, "You don't own " + name, http.StatusUnauthorized)
+	}
+
+	if err := httputils.ParseForm(r); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Println(err.Error())
+		return
+	}
+	height, err := strconv.Atoi(r.Form.Get("h"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Println(err.Error())
+		return
+	}
+	width, err := strconv.Atoi(r.Form.Get("w"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Println(err.Error())
+		return
+	}
+
+	err = p.client.ContainerResize(context.Background(), name, types.ResizeOptions{
+		Height: uint(height),
+		Width: uint(width),
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Println(err.Error())
+		return
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -135,11 +232,6 @@ func (p *Proxy) containerExecCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "You don't own " + name, http.StatusUnauthorized)
 	}
 
-	// prevent docker exec into lancelot container
-	if name == p.container {
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
 	fmt.Println(name)
 
 	if err := httputils.ParseForm(r); err != nil {
@@ -169,6 +261,8 @@ func (p *Proxy) containerExecCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	p.addExec(id.ID)
+
 	httputils.WriteJSON(w, http.StatusCreated, &types.IDResponse{
 		ID: id.ID,
 	})
@@ -177,7 +271,9 @@ func (p *Proxy) containerExecCreate(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) containerExecResize(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	execId := vars["execId"]
-	fmt.Println(execId)
+	if !p.ownsExec(execId) {
+		http.Error(w, "You don't own " + execId, http.StatusUnauthorized)
+	}
 
 	if err := httputils.ParseForm(r); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -212,6 +308,10 @@ func (p *Proxy) containerExecResize(w http.ResponseWriter, r *http.Request) {
 
 func (p *Proxy) containerExecStart(w http.ResponseWriter, r *http.Request) {
 	execId := mux.Vars(r)["execId"]
+	if !p.ownsExec(execId) {
+		http.Error(w, "You don't own " + execId, http.StatusUnauthorized)
+	}
+
 	execStartCheck := &types.ExecStartCheck{}
 	if err := json.NewDecoder(r.Body).Decode(execStartCheck); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -266,6 +366,10 @@ func (p *Proxy) containerExecStart(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) execInspect(w http.ResponseWriter, r *http.Request) {
 
 	execId := mux.Vars(r)["execId"]
+	if !p.ownsExec(execId) {
+		http.Error(w, "You don't own " + execId, http.StatusUnauthorized)
+	}
+
 	json, err := p.client.ContainerExecInspect(context.Background(), execId)
 	if err != nil {
 		if client.IsErrContainerNotFound(err) {

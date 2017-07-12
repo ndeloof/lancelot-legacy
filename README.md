@@ -18,6 +18,7 @@ docker-related (for sample, build a new docker iamge from a `Dockerfile` or run 
 
 Classic options are
 * [Docker in Docker](https://github.com/jpetazzo/dind) which own creator tell you [NOT TO USE](https://jpetazzo.github.io/2015/09/03/do-not-use-docker-in-docker-for-ci/)
+  ok, actually this _is_ used on [PWD](play-with-docker.com) so is not _so_ bad, but require some fine tuned infrastructure. 
 * Side containers, i.e. run those other containers on the same Docker Host sharing volume / network / ... depending your use-case.
 
 The later is the most recommended one, and require to grant access to the docker daemon. In most case on do bind mount 
@@ -110,13 +111,21 @@ we consider safe. Typically it allows to pass `--volumes-from` to share a volume
 It could also do some computation on parameters, for sample prevent reference to a container / image that is not included in
 end-user namespace, so one can't override system container images.
 
+### Filter accessible resources
+
+Proxy is attached to a single client and as such can easily track all resources (containers, images) this client has created
+on host. As a result we can block any attempt to access a container created by another user.
+For images, we have no way to check if user has legitimate access to an image, or this one has been pulled / built
+by another user with distinct credentials. So we have to try pulling from registry to check permissions.  
+                                                                                    
+
 ### Internal details
 
 Lancelot uses [docker/docker/client](https://github.com/docker/docker/tree/master/client) to access the actual docker
 daemon.  
 
-Server API implementation is moslty just copy/paste from [docker/docker/api/server](https://github.com/docker/docker/tree/master/api/server).
-as the [docker/docker/api/types](https://github.com/docker/docker/tree/master/api/types) package is used both by client
+Server API implementation is moslty just copy/paste from [docker/docker-ce/api/server](https://github.com/docker/docker-ce/blob/master/components/engine/api/server/router).
+as the [docker/docker-ce/api/types](https://github.com/docker/docker-ce/blob/master/components/engine/api/types) package is used both by client
 and server, mapping data is trivial, but Lancelot do always create a new data struct to ensure we only allow parameter
 we explicitly want to support (aka white-list).
 

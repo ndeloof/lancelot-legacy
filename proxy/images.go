@@ -16,6 +16,12 @@ import (
 func (p *Proxy) imageInspect(w http.ResponseWriter, r *http.Request) {
 
 	name := mux.Vars(r)["name"]
+	if !p.ownsImage(name) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+
 	json, _, err := p.client.ImageInspectWithRaw(context.Background(), name)
 	if err != nil {
 		if client.IsErrContainerNotFound(err) {
@@ -54,13 +60,15 @@ func (p *Proxy) imagesCreate(w http.ResponseWriter, r *http.Request) {
 
 	authEncoded := r.Header.Get("X-Registry-Auth")
 	reader, err := p.client.ImageCreate(context.Background(), image, types.ImageCreateOptions{
-		RegistryAuth: authEncoded, // Maybe lancelot should have it's own Auth and not let end-user pass them ?
+		RegistryAuth: authEncoded,
 		
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	p.addImage(image)
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
