@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api"
 	"fmt"
 	"golang.org/x/net/context"
+	"sync"
 )
 
 type Proxy struct {
@@ -15,28 +16,48 @@ type Proxy struct {
 	containers	[]string
 	execs           []string
 	images		[]string
+	mux		sync.Mutex // Mutex to prevent concurrent access to containers|execs|images
 }
 
-
-// FIXME need to protect concurrent access to p.containers|execs|images
 func (p *Proxy) addContainer(id string) {
 	fmt.Printf("recording allowed access to container %s\n", id)
+	p.mux.Lock()
+	defer p.mux.Unlock()
 	p.containers = append(p.containers, id)
 }
 
 func (p *Proxy) addExec(id string) {
+	p.mux.Lock()
+	defer p.mux.Unlock()
 	p.execs = append(p.execs, id)
 }
 
 func (p *Proxy) addImage(id string) {
 	fmt.Printf("recording allowed access to image %s\n", id)
+	p.mux.Lock()
+	defer p.mux.Unlock()
 	p.images = append(p.images, id)
 }
 
 
 func (p *Proxy) ownsContainer(id string) bool {
+	p.mux.Lock()
+	defer p.mux.Unlock()
 	return contains(p.containers, id)
 }
+
+func (p *Proxy) ownsExec(id string) bool {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+	return contains(p.execs, id)
+}
+
+func (p *Proxy) ownsImage(id string) bool {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+	return contains(p.images, id)
+}
+
 
 func contains(list []string, value string) bool {
 	for _,c := range list {
@@ -45,14 +66,6 @@ func contains(list []string, value string) bool {
 		}
 	}
 	return false
-}
-
-func (p *Proxy) ownsExec(id string) bool {
-	return contains(p.execs, id)
-}
-
-func (p *Proxy) ownsImage(id string) bool {
-	return contains(p.images, id)
 }
 
 func (p *Proxy) RegisterRoutes(r *mux.Router) {
