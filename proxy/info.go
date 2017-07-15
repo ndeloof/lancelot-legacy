@@ -56,20 +56,21 @@ func (p *Proxy) events(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	output := ioutils.NewWriteFlusher(w)
-	defer output.Close()
 	output.Flush()
 	enc := json.NewEncoder(output)
-	select  {
-		case ev := <- msg:
+	for {
+		select {
+		case ev := <-msg:
 			if err := enc.Encode(ev); err != nil {
 				fmt.Println(err.Error())
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-		case e := <- error:
+		case e := <-error:
 			fmt.Println(e.Error())
 			http.Error(w, e.Error(), http.StatusInternalServerError)
 			return
+		}
 	}
 }
 
