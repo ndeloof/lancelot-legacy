@@ -177,6 +177,63 @@ func (p *Proxy) containerStart(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// inspired by https://github.com/docker/docker-ce/blob/master/components/engine/api/server/router/container/container_routes.go #postContainersAttach
+func (p *Proxy) containerAttach(w http.ResponseWriter, r *http.Request) {
+
+	err := httputils.ParseForm(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	containerName := mux.Vars(r)["name"]
+	if !p.ownsContainer(containerName) {
+		http.Error(w, "You don't own " + containerName, http.StatusUnauthorized)
+	}
+
+	_, stdout, err := httputils.HijackConnection(w)
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if _, ok := r.Header["Upgrade"]; ok {
+		fmt.Fprint(stdout, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n")
+	} else {
+		fmt.Fprint(stdout, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n")
+	}
+
+	attachConfig := types.ContainerAttachOptions{
+		Stdin:   httputils.BoolValue(r, "stdin"),
+		Stdout:  httputils.BoolValue(r, "stdout"),
+		Stderr:  httputils.BoolValue(r, "stderr"),
+		Logs:       httputils.BoolValue(r, "logs"),
+		Stream:     httputils.BoolValue(r, "stream"),
+		DetachKeys: r.FormValue("detachKeys"),
+	}
+
+	resp, err := p.client.ContainerAttach(context.Background(), containerName, attachConfig)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Println(err.Error())
+		return
+	}
+
+	// Pipe
+	go func() {
+		defer resp.Close()
+		defer stdout.(net.Conn).Close()
+		b, err := io.Copy(stdout, resp.Reader)
+		if err != nil {
+			fmt.Println("ouch...")
+			fmt.Println(err.Error())
+		}
+		fmt.Printf("End of stdout, %d bytes written\n", b)
+	}()
+
+	return
+}
+
 func (p *Proxy) containerResize(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	if !p.ownsContainer(name) {

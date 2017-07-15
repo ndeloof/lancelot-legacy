@@ -81,6 +81,7 @@ func (p *Proxy) RegisterRoutes(r *mux.Router) {
 	r.Path("/v{version:[0-9.]+}/containers/create").Methods("POST").HandlerFunc(p.containerCreate)
 	r.Path("/v{version:[0-9.]+}/containers/{name:.*}/start").Methods("POST").HandlerFunc(p.containerStart)
 	r.Path("/v{version:[0-9.]+}/containers/{name:.*}/resize").Methods("POST").HandlerFunc(p.containerResize)
+	r.Path("/v{version:[0-9.]+}/containers/{name:.*}/attach").Methods("POST").HandlerFunc(p.containerAttach)
 	r.Path("/v{version:[0-9.]+}/containers/{name:.*}/stop").Methods("POST").HandlerFunc(p.containerStop)
 	r.Path("/v{version:[0-9.]+}/containers/{name:.*}/exec").Methods("POST").HandlerFunc(p.containerExecCreate)
 	r.Path("/v{version:[0-9.]+}/exec/{execId:.*}/start").Methods("POST").HandlerFunc(p.containerExecStart)
