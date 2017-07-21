@@ -87,7 +87,7 @@ func runSidecarContainer(args []string, lancelot string) error {
 	// Initialize CLI, configured to access docker socket directly
 	dockerCli.Initialize(&flags.ClientOptions{
 		Common: &flags.CommonOptions{
-			Hosts: []string { "unix:///var/run/docker.sock" },
+			Hosts: []string { "tcp://localhost:2375" },
 			TLS: false,
 		},
 	})
