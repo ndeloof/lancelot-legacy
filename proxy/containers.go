@@ -114,6 +114,13 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	volumesFrom := hostConfig.VolumesFrom
+	for _, c := range volumesFrom {
+		if !p.ownsContainer(name) {
+			http.Error(w, "You don't own " + name, http.StatusUnauthorized)
+		}
+	}
+
 	auth := r.Header.Get("X-Registry-Auth")
 
 	if !p.ownsImage(config.Image) {
@@ -151,7 +158,7 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 		AutoRemove: hostConfig.AutoRemove,
 		Binds: binds,
 		Mounts: mounts,
-		VolumesFrom: hostConfig.VolumesFrom,
+		VolumesFrom: volumesFrom,
 		Cgroup: container.CgroupSpec(p.GetCgroup()), // Force container to run within the same CGroup
 	}, networkingConfig, name)
 	if err != nil {
@@ -160,6 +167,9 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p.addContainer(body.ID)
+	if name != nil {
+		p.addContainer(name)
+	}
 
 	httputils.WriteJSON(w, http.StatusCreated, &types.IDResponse{
 		ID: body.ID,
