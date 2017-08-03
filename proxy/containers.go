@@ -16,11 +16,11 @@ import (
 	"net"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/filters"
+	"time"
 )
 
 
 func (p *Proxy) containerList(w http.ResponseWriter, r *http.Request) {
-
 
 	if err := httputils.ParseForm(r); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -46,10 +46,11 @@ func (p *Proxy) containerList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// NOTE as an alternative, we could also add a lable to every container we create, and force a filter here
+	// NOTE as an alternative, we could also add a label to every container we create, and force a filter here
 	mine := []types.Container{}
 	for _, c := range containers {
-		if p.ownsContainer(c.ID) {
+		_, err := p.ownsContainer(c.ID);
+		if err == nil {
 			mine = append(mine, c)
 		}
 	}
@@ -59,10 +60,13 @@ func (p *Proxy) containerList(w http.ResponseWriter, r *http.Request) {
 
 func (p *Proxy) containerInspect(w http.ResponseWriter, r *http.Request) {
 
-	name := mux.Vars(r)["name"]
-	if !p.ownsContainer(name) {
-		http.Error(w, "You don't own " + name, http.StatusUnauthorized)
+	vars := mux.Vars(r)
+	name, err := p.ownsContainer(vars["name"]);
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
 	json, err := p.client.ContainerInspect(context.Background(), name)
 	if err != nil {
 		if client.IsErrContainerNotFound(err) {
@@ -114,11 +118,14 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	volumesFrom := hostConfig.VolumesFrom
-	for _, c := range volumesFrom {
-		if !p.ownsContainer(name) {
-			http.Error(w, "You don't own " + name, http.StatusUnauthorized)
+	volumesFrom := []string{}
+	for _, c := range hostConfig.VolumesFrom {
+		id, err := p.ownsContainer(c)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
 		}
+		volumesFrom = append(volumesFrom, id)
 	}
 
 	auth := r.Header.Get("X-Registry-Auth")
@@ -167,8 +174,10 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p.addContainer(body.ID)
-	if name != nil {
-		p.addContainer(name)
+	if name != "" {
+		// FIXME as we support named containers there's a risk for name collision
+		// maybe force a prefix for names ?
+		p.addContainer(name);
 	}
 
 	httputils.WriteJSON(w, http.StatusCreated, &types.IDResponse{
@@ -177,9 +186,11 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Proxy) containerStart(w http.ResponseWriter, r *http.Request) {
-	name := mux.Vars(r)["name"]
-	if !p.ownsContainer(name) {
-		http.Error(w, "You don't own " + name, http.StatusUnauthorized)
+	vars := mux.Vars(r)
+	name, err := p.ownsContainer(vars["name"]);
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	p.client.ContainerStart(context.Background(), name, types.ContainerStartOptions{
@@ -195,14 +206,15 @@ func (p *Proxy) containerAttach(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	containerName := mux.Vars(r)["name"]
-	if !p.ownsContainer(containerName) {
-		http.Error(w, "You don't own " + containerName, http.StatusUnauthorized)
+	vars := mux.Vars(r)
+	name, err := p.ownsContainer(vars["name"]);
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	_, stdout, err := httputils.HijackConnection(w)
 	if err != nil {
-		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -222,10 +234,9 @@ func (p *Proxy) containerAttach(w http.ResponseWriter, r *http.Request) {
 		DetachKeys: r.FormValue("detachKeys"),
 	}
 
-	resp, err := p.client.ContainerAttach(context.Background(), containerName, attachConfig)
+	resp, err := p.client.ContainerAttach(context.Background(), name, attachConfig)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Println(err.Error())
 		return
 	}
 
@@ -245,26 +256,25 @@ func (p *Proxy) containerAttach(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Proxy) containerResize(w http.ResponseWriter, r *http.Request) {
-	name := mux.Vars(r)["name"]
-	if !p.ownsContainer(name) {
-		http.Error(w, "You don't own " + name, http.StatusUnauthorized)
+	vars := mux.Vars(r)
+	name, err := p.ownsContainer(vars["name"]);
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	if err := httputils.ParseForm(r); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Println(err.Error())
 		return
 	}
 	height, err := strconv.Atoi(r.Form.Get("h"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Println(err.Error())
 		return
 	}
 	width, err := strconv.Atoi(r.Form.Get("w"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Println(err.Error())
 		return
 	}
 
@@ -274,7 +284,6 @@ func (p *Proxy) containerResize(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Println(err.Error())
 		return
 	}
 
@@ -283,23 +292,56 @@ func (p *Proxy) containerResize(w http.ResponseWriter, r *http.Request) {
 
 func (p *Proxy) containerStop(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	name := vars["name"]
-	if !p.ownsContainer(name) {
-		http.Error(w, "You don't own " + name, http.StatusUnauthorized)
+	name, err := p.ownsContainer(vars["name"]);
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	fmt.Println(name)
+
+	if err := httputils.ParseForm(r); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var seconds *time.Duration
+	if tmpSeconds := r.Form.Get("t"); tmpSeconds != "" {
+		valSeconds, err := time.ParseDuration(tmpSeconds)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		seconds = &valSeconds
+	}
+
+	p.client.ContainerStop(context.Background(), name, seconds)
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+
+func (p *Proxy) containerKill(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name, err := p.ownsContainer(vars["name"]);
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	signal := r.Form.Get("signal")
+
+	p.client.ContainerKill(context.Background(), name, signal)
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (p *Proxy) containerExecCreate(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	name := vars["name"]
-	if !p.ownsContainer(name) {
-		http.Error(w, "You don't own " + name, http.StatusUnauthorized)
+	name, err := p.ownsContainer(vars["name"]);
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-
-	fmt.Println(name)
 
 	if err := httputils.ParseForm(r); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -453,12 +495,12 @@ func (p *Proxy) execInspect(w http.ResponseWriter, r *http.Request) {
 
 func (p *Proxy) containerDelete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	name := vars["name"]
-	if !p.ownsContainer(name) {
-		http.Error(w, "You don't own " + name, http.StatusUnauthorized)
-	}
+	name, err := p.ownsContainer(vars["name"])
 
-	fmt.Println(name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
 
 	p.client.ContainerRemove(context.Background(), name, types.ContainerRemoveOptions{
 		Force: httputils.BoolValue(r, "force"),

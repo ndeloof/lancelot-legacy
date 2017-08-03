@@ -8,6 +8,9 @@ import (
 	"fmt"
 	"golang.org/x/net/context"
 	"sync"
+	"time"
+	"strings"
+	"github.com/pkg/errors"
 )
 
 type Proxy struct {
@@ -40,10 +43,33 @@ func (p *Proxy) addImage(id string) {
 }
 
 
-func (p *Proxy) ownsContainer(id string) bool {
+/**
+ Check accessign this contianer is a legitimate API call and resolve actual container ID
+ */
+func (p *Proxy) ownsContainer(id string) (string, error) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
-	return contains(p.containers, id)
+	for _,c := range p.containers {
+		if c == id {
+			return id, nil
+		}
+	}
+
+	candidates := []string{}
+	for _,c := range p.containers {
+		if strings.HasPrefix(c, id) {
+			candidates = append(candidates, c)
+		}
+	}
+	if len(candidates) == 1 {
+		return candidates[0], nil
+	}
+
+	if len(candidates) > 1 {
+		return "", errors.New("Multiple IDs found with provided prefix: "+id);
+	}
+
+	return "", errors.New("No such container: "+id);
 }
 
 func (p *Proxy) ownsExec(id string) bool {
@@ -83,6 +109,7 @@ func (p *Proxy) RegisterRoutes(r *mux.Router) {
 	r.Path("/v{version:[0-9.]+}/containers/{name:.*}/resize").Methods("POST").HandlerFunc(p.containerResize)
 	r.Path("/v{version:[0-9.]+}/containers/{name:.*}/attach").Methods("POST").HandlerFunc(p.containerAttach)
 	r.Path("/v{version:[0-9.]+}/containers/{name:.*}/stop").Methods("POST").HandlerFunc(p.containerStop)
+	r.Path("/v{version:[0-9.]+}/containers/{name:.*}/kill").Methods("POST").HandlerFunc(p.containerKill)
 	r.Path("/v{version:[0-9.]+}/containers/{name:.*}/exec").Methods("POST").HandlerFunc(p.containerExecCreate)
 	r.Path("/v{version:[0-9.]+}/exec/{execId:.*}/start").Methods("POST").HandlerFunc(p.containerExecStart)
 	r.Path("/v{version:[0-9.]+}/exec/{execId:.*}/resize").Methods("POST").HandlerFunc(p.containerExecResize)
@@ -119,6 +146,21 @@ func (p *Proxy) GetCgroup() string {
 	return "/docker/" + p.cgroup
 }
 
+func (p *Proxy) Stop() {
+	fmt.Println("Shutting down...");
+	timeout := 10 * time.Second
+
+	var wg sync.WaitGroup
+	wg.Add(len(p.containers))
+	for _, c := range p.containers {
+		go func() {
+			defer wg.Done()
+			fmt.Printf("Stopping container %s\n", c)
+			p.client.ContainerStop(context.Background(), c, &timeout)
+		}()
+	}
+	wg.Wait()
+}
 
 
 

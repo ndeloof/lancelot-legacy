@@ -24,6 +24,15 @@ import (
 
 func main() {
 
+	fmt.Println(`
+.____                               .__          __
+|    |   _____    ____   ____  ____ |  |   _____/  |_
+|    |   \__  \  /    \_/ ___\/ __ \|  |  /  _ \   __\
+|    |___ / __ \|   |  \  \__\  ___/|  |_(  <_> )  |
+|_______ (____  /___|  /\___  >___  >____/\____/|__|
+        \/    \/     \/     \/    \/
+        `)
+
 	client, err := client.NewEnvClient()
 	if err != nil {
 		panic(err)
@@ -68,6 +77,8 @@ func main() {
 
 
 	<-stopChan // wait for SIGINT
+
+	p.Stop()
 	// shut down gracefully, but wait no longer than 5 seconds before halting
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	srv.Shutdown(ctx)
