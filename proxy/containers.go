@@ -169,7 +169,11 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 		Cgroup: container.CgroupSpec(p.GetCgroup()), // Force container to run within the same CGroup
 	}, networkingConfig, name)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if client.IsErrImageNotFound(err) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 
