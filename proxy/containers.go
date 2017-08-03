@@ -213,38 +213,43 @@ func (p *Proxy) containerAttach(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, stdout, err := httputils.HijackConnection(w)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if _, ok := r.Header["Upgrade"]; ok {
-		fmt.Fprint(stdout, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n")
-	} else {
-		fmt.Fprint(stdout, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n")
-	}
-
-	attachConfig := types.ContainerAttachOptions{
+	hijack, err := p.client.ContainerAttach(context.Background(), name, types.ContainerAttachOptions{
 		Stdin:   httputils.BoolValue(r, "stdin"),
 		Stdout:  httputils.BoolValue(r, "stdout"),
 		Stderr:  httputils.BoolValue(r, "stderr"),
 		Logs:       httputils.BoolValue(r, "logs"),
 		Stream:     httputils.BoolValue(r, "stream"),
 		DetachKeys: r.FormValue("detachKeys"),
-	}
-
-	resp, err := p.client.ContainerAttach(context.Background(), name, attachConfig)
+	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	p.hijack(w, hijack, r)
+}
+
+func (p *Proxy) hijack(w http.ResponseWriter, h types.HijackedResponse, r *http.Request) {
+
+	stdin, stdout, err := httputils.HijackConnection(w)
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	_, upgrade := r.Header["Upgrade"]
+	if upgrade {
+		fmt.Fprintf(stdout, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
+	} else {
+		fmt.Fprintf(stdout, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
+	}
+
 	// Pipe
 	go func() {
-		defer resp.Close()
+		defer h.Close()
 		defer stdout.(net.Conn).Close()
-		b, err := io.Copy(stdout, resp.Reader)
+		b, err := io.Copy(stdout, h.Reader)
 		if err != nil {
 			fmt.Println("ouch...")
 			fmt.Println(err.Error())
@@ -252,7 +257,15 @@ func (p *Proxy) containerAttach(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("End of stdout, %d bytes written\n", b)
 	}()
 
-	return
+	go func() {
+		defer stdin.(net.Conn).Close()
+		b, err := io.Copy(h.Conn, stdin)
+		if err != nil {
+			fmt.Println("ouch...")
+			fmt.Println(err.Error())
+		}
+		fmt.Printf("End of stdout, %d bytes written\n", b)
+	}()
 }
 
 func (p *Proxy) containerResize(w http.ResponseWriter, r *http.Request) {
@@ -288,6 +301,40 @@ func (p *Proxy) containerResize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (p *Proxy) containerLogs(w http.ResponseWriter, r *http.Request) {
+
+	/* TODO
+	vars := mux.Vars(r)
+	name, err := p.ownsContainer(vars["name"]);
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	stdout, stderr := httputils.BoolValue(r, "stdout"), httputils.BoolValue(r, "stderr")
+	if !(stdout || stderr) {
+		return fmt.Errorf("Bad parameters: you must choose at least one stream")
+	}
+
+	reader, err := p.client.ContainerLogs(context.Background(), name, types.ContainerLogsOptions{
+		ShowStdout: stdout,
+		ShowStderr: stderr,
+		Since:      r.Form.Get("since"),
+		Timestamps: httputils.BoolValue(r, "timestamps"),
+		Follow:	    httputils.BoolValue(r, "follow"),
+		Tail:       r.Form.Get("tail"),
+		Details:    httputils.BoolValue(r, "details"),
+	});
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	*/
+
 }
 
 func (p *Proxy) containerStop(w http.ResponseWriter, r *http.Request) {
@@ -433,10 +480,10 @@ func (p *Proxy) containerExecStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := p.client.ContainerExecAttach(context.Background(), execId, types.ExecConfig{
-		AttachStdin: false,
-		AttachStdout: true,
-		AttachStderr: true,
+	hijack, err := p.client.ContainerExecAttach(context.Background(), execId, types.ExecConfig{
+		AttachStdin: httputils.BoolValue(r, "stdin"),
+		AttachStdout: httputils.BoolValue(r, "stdout"),
+		AttachStderr: httputils.BoolValue(r, "stderr"),
 	})
 	if err != nil {
 		fmt.Println(err.Error())
@@ -444,31 +491,7 @@ func (p *Proxy) containerExecStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, stdout, err := httputils.HijackConnection(w)
-	if err != nil {
-		fmt.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	_, upgrade := r.Header["Upgrade"]
-	if upgrade {
-		fmt.Fprintf(stdout, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
-	} else {
-		fmt.Fprintf(stdout, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-	}
-
-	// Pipe
-	go func() {
-		defer resp.Close()
-		defer stdout.(net.Conn).Close()
-		b, err := io.Copy(stdout, resp.Reader)
-		if err != nil {
-			fmt.Println("ouch...")
-			fmt.Println(err.Error())
-		}
-		fmt.Printf("End of stdout, %d bytes written\n", b)
-	}()
+	p.hijack(w, hijack, r)
 }
 
 

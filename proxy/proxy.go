@@ -23,23 +23,30 @@ type Proxy struct {
 }
 
 func (p *Proxy) addContainer(id string) {
-	fmt.Printf("recording allowed access to container %s\n", id)
 	p.mux.Lock()
 	defer p.mux.Unlock()
-	p.containers = append(p.containers, id)
+	if !contains(p.containers, id) {
+		fmt.Printf("recording allowed access to container %s\n", id)
+		p.containers = append(p.containers, id)
+	}
 }
 
 func (p *Proxy) addExec(id string) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
-	p.execs = append(p.execs, id)
+	if !contains(p.execs, id) {
+		p.execs = append(p.execs, id)
+	}
 }
 
 func (p *Proxy) addImage(id string) {
-	fmt.Printf("recording allowed access to image %s\n", id)
 	p.mux.Lock()
 	defer p.mux.Unlock()
-	p.images = append(p.images, id)
+	if !contains(p.images, id) {
+		fmt.Printf("recording allowed access to image %s\n", id)
+		p.images = append(p.images, id)
+	}
+
 }
 
 
@@ -153,11 +160,11 @@ func (p *Proxy) Stop() {
 	var wg sync.WaitGroup
 	wg.Add(len(p.containers))
 	for _, c := range p.containers {
-		go func() {
+		go func(id string) {
 			defer wg.Done()
-			fmt.Printf("Stopping container %s\n", c)
-			p.client.ContainerStop(context.Background(), c, &timeout)
-		}()
+			fmt.Printf("Stopping container %s\n", id)
+			p.client.ContainerStop(context.Background(), id, &timeout)
+		}(c)
 	}
 	wg.Wait()
 }
