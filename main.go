@@ -19,6 +19,7 @@ import (
 	"github.com/docker/cli/cli/command"
 	c "github.com/docker/cli/cli/command/container"
 	"github.com/docker/cli/cli/flags"
+	"net"
 )
 
 
@@ -64,13 +65,14 @@ func main() {
 
 	srv := &http.Server{Addr: ":2375", Handler: loggedRouter}
 
-	go func() {
-		// service connections
-		if err := srv.ListenAndServe(); err != nil {
-			fmt.Printf("listen: %s\n", err)
-		}
-	}()
+	listener, err := net.Listen("tcp", ":2375")
+	if err != nil {
+		panic(err)
+	}
+	
+	go srv.Serve(listener)
 	fmt.Println("Lancelot Proxy started")
+
 
 	args := os.Args[1:]
 	fmt.Println(args)
