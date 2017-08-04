@@ -105,6 +105,7 @@ func contains(list []string, value string) bool {
 func (p *Proxy) RegisterRoutes(r *mux.Router) {
 	r.Path("/_ping").Methods("GET").HandlerFunc(p.ping)
 	r.Path("/v{version:[0-9.]+}/version").Methods("GET").HandlerFunc(p.version)
+	r.Path("/v{version:[0-9.]+}/info").Methods("GET").HandlerFunc(p.info)
 	r.Path("/v{version:[0-9.]+}/events").Methods("GET").HandlerFunc(p.events)
 
 	r.Path("/v{version:[0-9.]+}/images/{name:.*}/json").Methods("GET").HandlerFunc(p.imageInspect)

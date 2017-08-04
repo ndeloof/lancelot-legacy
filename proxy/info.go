@@ -33,6 +33,25 @@ func (p *Proxy) version(w http.ResponseWriter, r *http.Request) {
 	httputils.WriteJSON(w, http.StatusOK, version)
 }
 
+func (p *Proxy) info(w http.ResponseWriter, r *http.Request) {
+	info, err := p.client.Info(context.Background())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	httputils.WriteJSON(w, http.StatusOK,
+	// not sure which info are actually useful/required and which ones can leak host config and break security
+	// so let just return a minimal set
+	types.Info {
+		ServerVersion: info.ServerVersion, // or proxy API version ?
+		ID: info.ID,
+		Architecture: info.Architecture,
+		Containers: len(p.containers),
+		IndexServerAddress: info.IndexServerAddress,
+	})
+}
+
 func (p *Proxy) events(w http.ResponseWriter, r *http.Request) {
 	if err := httputils.ParseForm(r); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
