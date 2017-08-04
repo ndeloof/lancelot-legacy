@@ -74,10 +74,10 @@ func (p *Proxy) ownsContainer(id string) (string, error) {
 	}
 
 	if len(candidates) > 1 {
-		return "", errors.New("Multiple IDs found with provided prefix: "+id);
+		return id, errors.New("Multiple IDs found with provided prefix: "+id);
 	}
 
-	return "", errors.New("No such container: "+id);
+	return id, errors.New("No such container: "+id);
 }
 
 func (p *Proxy) ownsExec(id string) bool {

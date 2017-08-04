@@ -131,7 +131,7 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 	links := []string{}
 	for _, c := range hostConfig.Links {
 		id, err := p.ownsContainer(c)
-		if err != nil && id != p.GetHostname() {
+		if err != nil && c != p.GetHostname() {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
