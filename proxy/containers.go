@@ -366,17 +366,17 @@ func (p *Proxy) containerStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var seconds *time.Duration
+	var seconds time.Duration
 	if tmpSeconds := r.Form.Get("t"); tmpSeconds != "" {
-		valSeconds, err := time.ParseDuration(tmpSeconds)
+		valSeconds, err := strconv.Atoi(tmpSeconds)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		seconds = &valSeconds
+		seconds = time.Duration(valSeconds)
 	}
 
-	p.client.ContainerStop(context.Background(), name, seconds)
+	p.client.ContainerStop(context.Background(), name, &seconds)
 
 	w.WriteHeader(http.StatusNoContent)
 }
