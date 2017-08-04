@@ -128,6 +128,16 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 		volumesFrom = append(volumesFrom, id)
 	}
 
+	links := []string{}
+	for _, c := range hostConfig.Links {
+		id, err := p.ownsContainer(c)
+		if err != nil && id != p.GetHostname() {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		links = append(links, id)
+	}
+
 	auth := r.Header.Get("X-Registry-Auth")
 
 	if !p.ownsImage(config.Image) {
@@ -165,6 +175,7 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 		AutoRemove: hostConfig.AutoRemove,
 		Binds: binds,
 		Mounts: mounts,
+		Links: links,
 		VolumesFrom: volumesFrom,
 		Cgroup: container.CgroupSpec(p.GetCgroup()), // Force container to run within the same CGroup
 	}, networkingConfig, name)

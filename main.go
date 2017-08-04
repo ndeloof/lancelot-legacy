@@ -40,12 +40,17 @@ func main() {
 	p := &proxy.Proxy{}
 	p.SetClient(client)
 
-	me, err := selfContainerId()
+	cgroup, err := selfContainerId()
 	if err != nil {
 		panic(err)
 	}
-	p.SetCgroup(me)
+	p.SetCgroup(cgroup)
 
+	me, err := selfContainerName()
+	if err != nil {
+		panic(err)
+	}
+	p.SetHostname(me)
 
 	// subscribe to SIGINT signals
 	stopChan := make(chan os.Signal)
@@ -65,12 +70,12 @@ func main() {
 			fmt.Printf("listen: %s\n", err)
 		}
 	}()
-
+	fmt.Println("Lancelot Proxy started")
 
 	args := os.Args[1:]
 	fmt.Println(args)
 	if len(args) > 0 {
-		if err := runSidecarContainer(args, me); err != nil {
+		if err := runSidecarContainer(args, cgroup, me); err != nil {
 			panic(err)
 		}
 	}
@@ -88,7 +93,7 @@ func main() {
  * start first sidecar container.
  * lancelot can receive the exact same arguments as a `docker run` command.
  */
-func runSidecarContainer(args []string, lancelot string) error {
+func runSidecarContainer(args []string, cgroup string, lancelot string) error {
 
 	// following code is mostly a copy paste from github.com/docker/docker/cmd/docker/docker.go:main()
 	stdin, stdout, stderr := term.StdStreams()
@@ -107,7 +112,7 @@ func runSidecarContainer(args []string, lancelot string) error {
 	cmd := c.NewRunCommand(dockerCli)
 
 	// force new container to run within the same cgroup hierarchy
-	args = append([]string{"--cgroup-parent", lancelot, "--link", lancelot, "--env", "DOCKER_HOST="+lancelot}, args...)
+	args = append([]string{"--cgroup-parent", cgroup, "--link", lancelot, "--env", "DOCKER_HOST="+lancelot}, args...)
 
 	fmt.Printf("Starting sidecar container %v\n", args)
 	cmd.SetArgs(args)
@@ -135,4 +140,8 @@ func selfContainerId() (string, error) {
 		}
 	}
 	return "", errors.New("not running inside a container")
+}
+
+func selfContainerName() (string, error) {
+	return os.Hostname()
 }

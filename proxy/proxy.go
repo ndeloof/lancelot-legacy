@@ -16,6 +16,7 @@ import (
 type Proxy struct {
 	client client.APIClient
 	cgroup string  // Our current cgroup, we will share with any container we run
+	hostname string
 	containers	[]string
 	execs           []string
 	images		[]string
@@ -151,6 +152,14 @@ func (p *Proxy) SetCgroup(cgroup string) {
 
 func (p *Proxy) GetCgroup() string {
 	return "/docker/" + p.cgroup
+}
+
+func (p *Proxy) SetHostname(host string) {
+	p.hostname = host
+}
+
+func (p *Proxy) GetHostname() string {
+	return p.hostname
 }
 
 func (p *Proxy) Stop() {
