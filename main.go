@@ -85,10 +85,11 @@ func main() {
 
 	<-stopChan // wait for SIGINT
 
-	p.Stop()
 	// shut down gracefully, but wait no longer than 5 seconds before halting
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	srv.Shutdown(ctx)
+
+	p.Stop()
 }
 
 /**
