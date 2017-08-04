@@ -10,6 +10,7 @@ import (
 	"strings"
 	"github.com/docker/docker/api/types"
 	"io"
+	"fmt"
 )
 
 
@@ -28,6 +29,7 @@ func (p *Proxy) imageInspect(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		} else {
+			fmt.Println(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -38,6 +40,7 @@ func (p *Proxy) imageInspect(w http.ResponseWriter, r *http.Request) {
 
 func (p *Proxy) imagesCreate(w http.ResponseWriter, r *http.Request) {
 	if err := httputils.ParseForm(r); err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -64,6 +67,7 @@ func (p *Proxy) imagesCreate(w http.ResponseWriter, r *http.Request) {
 		
 	})
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

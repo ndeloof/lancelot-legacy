@@ -23,11 +23,13 @@ import (
 func (p *Proxy) containerList(w http.ResponseWriter, r *http.Request) {
 
 	if err := httputils.ParseForm(r); err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	filter, err := filters.FromParam(r.Form.Get("filters"))
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -42,6 +44,7 @@ func (p *Proxy) containerList(w http.ResponseWriter, r *http.Request) {
 
 	containers, err := p.client.ContainerList(context.Background(), config)
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -63,6 +66,7 @@ func (p *Proxy) containerInspect(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name, err := p.ownsContainer(vars["name"]);
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -73,6 +77,7 @@ func (p *Proxy) containerInspect(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		} else {
+			fmt.Println(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -85,10 +90,12 @@ func (p *Proxy) containerInspect(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 
 	if err := httputils.ParseForm(r); err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if err := httputils.CheckForJSON(r); err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -98,6 +105,7 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 	decoder := runconfig.ContainerDecoder{}
 	config, hostConfig, networkingConfig, err := decoder.DecodeConfig(r.Body)
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -122,6 +130,7 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 	for _, c := range hostConfig.VolumesFrom {
 		id, err := p.ownsContainer(c)
 		if err != nil {
+			fmt.Println(err.Error())
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
@@ -132,6 +141,7 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 	for _, c := range hostConfig.Links {
 		id, err := p.ownsContainer(c)
 		if err != nil && c != p.GetHostname() {
+			fmt.Println(err.Error())
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
@@ -151,6 +161,7 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 		// we pull to check permission, not to actually update image
 		load.Close()
 		if err != nil {
+			fmt.Println(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -183,6 +194,7 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 		if client.IsErrImageNotFound(err) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 		} else {
+			fmt.Println(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
@@ -204,6 +216,7 @@ func (p *Proxy) containerStart(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name, err := p.ownsContainer(vars["name"]);
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -218,12 +231,14 @@ func (p *Proxy) containerAttach(w http.ResponseWriter, r *http.Request) {
 
 	err := httputils.ParseForm(r)
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	vars := mux.Vars(r)
 	name, err := p.ownsContainer(vars["name"]);
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -237,6 +252,7 @@ func (p *Proxy) containerAttach(w http.ResponseWriter, r *http.Request) {
 		DetachKeys: r.FormValue("detachKeys"),
 	})
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -248,6 +264,7 @@ func (p *Proxy) hijack(w http.ResponseWriter, h types.HijackedResponse, r *http.
 
 	stdin, stdout, err := httputils.HijackConnection(w)
 	if err != nil {
+		fmt.Println(err.Error())
 		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -287,21 +304,25 @@ func (p *Proxy) containerResize(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name, err := p.ownsContainer(vars["name"]);
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	if err := httputils.ParseForm(r); err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	height, err := strconv.Atoi(r.Form.Get("h"))
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	width, err := strconv.Atoi(r.Form.Get("w"))
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -311,6 +332,7 @@ func (p *Proxy) containerResize(w http.ResponseWriter, r *http.Request) {
 		Width: uint(width),
 	})
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -324,7 +346,7 @@ func (p *Proxy) containerLogs(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name, err := p.ownsContainer(vars["name"]);
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Println(err.Error())		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -344,7 +366,7 @@ func (p *Proxy) containerLogs(w http.ResponseWriter, r *http.Request) {
 	});
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Println(err.Error())		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -356,12 +378,14 @@ func (p *Proxy) containerStop(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name, err := p.ownsContainer(vars["name"]);
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 
 	if err := httputils.ParseForm(r); err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -370,6 +394,7 @@ func (p *Proxy) containerStop(w http.ResponseWriter, r *http.Request) {
 	if tmpSeconds := r.Form.Get("t"); tmpSeconds != "" {
 		valSeconds, err := strconv.Atoi(tmpSeconds)
 		if err != nil {
+			fmt.Println(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -386,6 +411,7 @@ func (p *Proxy) containerKill(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name, err := p.ownsContainer(vars["name"]);
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -401,21 +427,25 @@ func (p *Proxy) containerExecCreate(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name, err := p.ownsContainer(vars["name"]);
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	if err := httputils.ParseForm(r); err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if err := httputils.CheckForJSON(r); err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	execConfig := &types.ExecConfig{}
 	if err := json.NewDecoder(r.Body).Decode(execConfig); err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -428,6 +458,7 @@ func (p *Proxy) containerExecCreate(w http.ResponseWriter, r *http.Request) {
 	// Register an instance of Exec in container.
 	id, err := p.client.ContainerExecCreate(context.Background(), name, *execConfig)
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -447,20 +478,20 @@ func (p *Proxy) containerExecResize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := httputils.ParseForm(r); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	height, err := strconv.Atoi(r.Form.Get("h"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	width, err := strconv.Atoi(r.Form.Get("w"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -469,8 +500,8 @@ func (p *Proxy) containerExecResize(w http.ResponseWriter, r *http.Request) {
 		Width: uint(width),
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -485,6 +516,7 @@ func (p *Proxy) containerExecStart(w http.ResponseWriter, r *http.Request) {
 
 	execStartCheck := &types.ExecStartCheck{}
 	if err := json.NewDecoder(r.Body).Decode(execStartCheck); err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -523,6 +555,7 @@ func (p *Proxy) execInspect(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		} else {
+			fmt.Println(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -536,6 +569,7 @@ func (p *Proxy) containerDelete(w http.ResponseWriter, r *http.Request) {
 	name, err := p.ownsContainer(vars["name"])
 
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}

@@ -9,11 +9,13 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/pkg/ioutils"
 	"encoding/json"
+	"fmt"
 )
 
 func (p *Proxy) ping(w http.ResponseWriter, r *http.Request) {
 	_, err := p.client.Ping(context.Background())
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -26,6 +28,7 @@ func (p *Proxy) version(w http.ResponseWriter, r *http.Request) {
 
 	version, err := p.client.ServerVersion(context.Background())
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -36,6 +39,7 @@ func (p *Proxy) version(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) info(w http.ResponseWriter, r *http.Request) {
 	info, err := p.client.Info(context.Background())
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -54,6 +58,7 @@ func (p *Proxy) info(w http.ResponseWriter, r *http.Request) {
 
 func (p *Proxy) events(w http.ResponseWriter, r *http.Request) {
 	if err := httputils.ParseForm(r); err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -62,6 +67,7 @@ func (p *Proxy) events(w http.ResponseWriter, r *http.Request) {
 	until := r.Form.Get("until")
 	args, err := filters.FromParam(r.Form.Get("filters"))
 	if err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -80,6 +86,7 @@ func (p *Proxy) events(w http.ResponseWriter, r *http.Request) {
 		select {
 		case ev := <-msg:
 			if err := enc.Encode(ev); err != nil {
+				fmt.Println(err.Error())
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
