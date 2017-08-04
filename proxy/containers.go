@@ -115,6 +115,7 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 	for _, b := range binds {
 		if b[:1] == "/" {
 			http.Error(w, "Bind mount are not authorized", http.StatusUnauthorized)
+			return
 		}
 	}
 
@@ -123,6 +124,7 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 	for _, m := range mounts {
 		if m.Type == mount.TypeBind {
 			http.Error(w, "Bind mount are not authorized", http.StatusUnauthorized)
+			return
 		}
 	}
 
