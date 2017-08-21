@@ -209,6 +209,18 @@ func (p *Proxy) containerCreate(w http.ResponseWriter, r *http.Request) {
 		p.addContainer(name);
 	}
 
+	json, err := p.client.ContainerInspect(context.Background(), body.ID)
+	if err := httputils.CheckForJSON(r); err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	for _, m := range json.Mounts {
+		if m.Type == mount.TypeVolume {
+			p.addVolume(m.Name)
+		}
+	}
+
 	httputils.WriteJSON(w, http.StatusCreated, &types.IDResponse{
 		ID: body.ID,
 	})

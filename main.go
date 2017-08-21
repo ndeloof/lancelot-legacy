@@ -115,7 +115,7 @@ func runSidecarContainer(args []string, cgroup string, lancelot string) error {
 	cmd := c.NewRunCommand(dockerCli)
 
 	// force new container to run within the same cgroup hierarchy
-	args = append([]string{"--cgroup-parent", cgroup, "--link", lancelot, "--env", "DOCKER_HOST="+lancelot}, args...)
+	args = append([]string{"--cgroup-parent", cgroup, "--link", lancelot, "--env", "DOCKER_HOST=tcp://"+lancelot+":2375"}, args...)
 
 	fmt.Printf("Starting sidecar container %v\n", args)
 	cmd.SetArgs(args)

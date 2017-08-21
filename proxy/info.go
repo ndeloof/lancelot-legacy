@@ -91,6 +91,7 @@ func (p *Proxy) events(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		case e := <-error:
+			fmt.Println(err.Error())
 			http.Error(w, e.Error(), http.StatusInternalServerError)
 			return
 		}

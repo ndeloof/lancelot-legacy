@@ -20,6 +20,7 @@ type Proxy struct {
 	containers	[]string
 	execs           []string
 	images		[]string
+	volumes		[]string
 	mux		sync.Mutex // Mutex to prevent concurrent access to containers|execs|images
 }
 
@@ -29,6 +30,15 @@ func (p *Proxy) addContainer(id string) {
 	if !contains(p.containers, id) {
 		fmt.Printf("recording allowed access to container %s\n", id)
 		p.containers = append(p.containers, id)
+	}
+}
+
+func (p *Proxy) addVolume(id string) {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+	if !contains(p.volumes, id) {
+		fmt.Printf("recording allowed access to volume %s\n", id)
+		p.volumes = append(p.volumes, id)
 	}
 }
 
@@ -80,6 +90,15 @@ func (p *Proxy) ownsContainer(id string) (string, error) {
 	return id, errors.New("No such container: "+id);
 }
 
+func (p *Proxy) ownsVolume(id string) (string, error) {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+	if ok := contains(p.volumes, id); !ok {
+		return id, errors.New("No such volume: "+id);
+	}
+	return id, nil
+}
+
 func (p *Proxy) ownsExec(id string) bool {
 	p.mux.Lock()
 	defer p.mux.Unlock()
@@ -124,6 +143,10 @@ func (p *Proxy) RegisterRoutes(r *mux.Router) {
 	r.Path("/v{version:[0-9.]+}/exec/{execId:.*}/resize").Methods("POST").HandlerFunc(p.containerExecResize)
 	r.Path("/v{version:[0-9.]+}/exec/{execId:.*}/json").Methods("GET").HandlerFunc(p.execInspect)
 	r.Path("/v{version:[0-9.]+}/containers/{name:.*}").Methods("DELETE").HandlerFunc(p.containerDelete)
+
+	r.Path("/v{version:[0-9.]+}/volumes").Methods("GET").HandlerFunc(p.volumeList)
+	r.Path("/v{version:[0-9.]+}/volumes/create").Methods("POST").HandlerFunc(p.volumeCreate)
+	r.Path("/v{version:[0-9.]+}/volumes/{name:*}").Methods("DELETE").HandlerFunc(p.volumeDelete)
 
 	r.Path("/v{version:[0-9.]+}/build").Methods("POST").HandlerFunc(p.build)
 }
