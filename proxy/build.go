@@ -10,14 +10,21 @@ import (
 	"github.com/docker/go-units"
 	"encoding/json"
 	"strconv"
+	"fmt"
 )
 
 
 func (p *Proxy) build(w http.ResponseWriter, r *http.Request) {
 
+	if err := httputils.ParseForm(r); err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	tags := r.Form["t"]
 	options := &types.ImageBuildOptions{
 		Dockerfile: r.FormValue("dockerfile"),
-		Tags: r.Form["t"],    // TODO support tag black/white-list
+		Tags: tags,    // TODO support tag black/white-list
 
 		SuppressOutput: httputils.BoolValue(r, "q"),
 		NoCache: httputils.BoolValue(r, "nocache"),
@@ -99,4 +106,7 @@ func (p *Proxy) build(w http.ResponseWriter, r *http.Request) {
 	defer output.Close()
 	io.Copy(output, res.Body)
 
+	for _, tag := range tags {
+		p.addImage(tag)
+	}
 }
