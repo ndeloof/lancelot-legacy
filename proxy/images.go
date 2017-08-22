@@ -78,3 +78,29 @@ func (p *Proxy) imagesCreate(w http.ResponseWriter, r *http.Request) {
 	defer output.Close()
 	io.Copy(output, reader)
 }
+
+func (p *Proxy) imagesPush(w http.ResponseWriter, r *http.Request) {
+
+	name := mux.Vars(r)["name"]
+	if !p.ownsImage(name) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	authEncoded := r.Header.Get("X-Registry-Auth")
+	reader, err := p.client.ImagePush(context.Background(), name, types.ImagePushOptions{
+		RegistryAuth: authEncoded,
+	})
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
+	io.Copy(output, reader)
+
+
+}
