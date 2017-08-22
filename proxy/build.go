@@ -106,7 +106,20 @@ func (p *Proxy) build(w http.ResponseWriter, r *http.Request) {
 	defer output.Close()
 	io.Copy(output, res.Body)
 
-	for _, tag := range tags {
-		p.addImage(tag)
+	// Wonder 'docker build' does not REQUIRE a tag, how to get image ID without ?
+	if len(tags) > 0 {
+		tag := tags[0]
+
+		// record both ID and all tags associated with image ID
+		inspect, _, err := p.client.ImageInspectWithRaw(context.Background(), tag)
+		if err != nil {
+			fmt.Println(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		p.addImage(inspect.ID)
+		for _, t := range inspect.RepoTags {
+			p.addImage(t)
+		}
 	}
 }

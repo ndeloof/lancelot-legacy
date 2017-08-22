@@ -11,8 +11,49 @@ import (
 	"github.com/docker/docker/api/types"
 	"io"
 	"fmt"
+	"github.com/docker/docker/api/types/filters"
 )
 
+
+func (p *Proxy) imagesList(w http.ResponseWriter, r *http.Request) {
+
+	if err := httputils.ParseForm(r); err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	imageFilters, err := filters.FromParam(r.Form.Get("filters"))
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	filterParam := r.Form.Get("filter")
+	if filterParam != "" {
+		imageFilters.Add("reference", filterParam)
+	}
+
+	images, err := p.client.ImageList(context.Background(), types.ImageListOptions{
+		Filters: imageFilters,
+		All: httputils.BoolValue(r, "all"),
+	})
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	filtered := []types.ImageSummary{}
+	for _,i := range images {
+		if p.ownsImage(i.ID) {
+			filtered = append(filtered, i)
+		}
+	}
+
+	httputils.WriteJSON(w, http.StatusOK, filtered)
+}
 
 func (p *Proxy) imageInspect(w http.ResponseWriter, r *http.Request) {
 
@@ -72,11 +113,22 @@ func (p *Proxy) imagesCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p.addImage(image)
-
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 	io.Copy(output, reader)
+
+
+	// record both ID and all tags associated with image ID
+	inspect, _, err := p.client.ImageInspectWithRaw(context.Background(), image)
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	p.addImage(inspect.ID)
+	for _, t := range inspect.RepoTags {
+		p.addImage(t)
+	}
 }
 
 func (p *Proxy) imagesPush(w http.ResponseWriter, r *http.Request) {
