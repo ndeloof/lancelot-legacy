@@ -17,6 +17,8 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/filters"
 	"time"
+	"github.com/docker/docker/pkg/ioutils"
+	"encoding/base64"
 )
 
 
@@ -581,7 +583,6 @@ func (p *Proxy) execInspect(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) containerDelete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name, err := p.ownsContainer(vars["name"])
-
 	if err != nil {
 		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -594,4 +595,42 @@ func (p *Proxy) containerDelete(w http.ResponseWriter, r *http.Request) {
 		RemoveLinks: httputils.BoolValue(r, "link"),
 	})
 }
+func (p *Proxy) containerArchiveGet(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name, err := p.ownsContainer(vars["name"])
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
 
+	v, err := httputils.ArchiveFormValues(r, vars)
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	reader, stat, err := p.client.CopyFromContainer(context.Background(), name, v.Path)
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	statJSON, err := json.Marshal(stat)
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/x-tar")
+	w.Header().Set("X-Docker-Container-Path-Stat", base64.StdEncoding.EncodeToString(statJSON))
+
+	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
+	io.Copy(output, reader)
+
+
+}     
