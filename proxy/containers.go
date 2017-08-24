@@ -631,6 +631,33 @@ func (p *Proxy) containerArchiveGet(w http.ResponseWriter, r *http.Request) {
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 	io.Copy(output, reader)
+}
 
+func (p *Proxy) containerArchivePut(w http.ResponseWriter, r *http.Request) {
 
-}     
+	vars := mux.Vars(r)
+	name, err := p.ownsContainer(vars["name"])
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	v, err := httputils.ArchiveFormValues(r, vars)
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = p.client.CopyToContainer(context.Background(), name, v.Path, r.Body, types.CopyToContainerOptions{
+		AllowOverwriteDirWithFile: httputils.BoolValue(r, "noOverwriteDirNonDir"),
+		CopyUIDGID: httputils.BoolValue(r, "copyUIDGID"),
+	})
+
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}

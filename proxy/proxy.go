@@ -151,6 +151,7 @@ func (p *Proxy) RegisterRoutes(r *mux.Router) {
 	r.Path("/v{version:[0-9.]+}/exec/{execId:.*}/json").Methods("GET").HandlerFunc(p.execInspect)
 	r.Path("/v{version:[0-9.]+}/containers/{name:.*}").Methods("DELETE").HandlerFunc(p.containerDelete)
 	r.Path("/v{version:[0-9.]+}/containers/{name:.*}/archive").Methods("GET").HandlerFunc(p.containerArchiveGet)
+	r.Path("/v{version:[0-9.]+}/containers/{name:.*}/archive").Methods("PUT").HandlerFunc(p.containerArchivePut)
 
 	r.Path("/v{version:[0-9.]+}/volumes").Methods("GET").HandlerFunc(p.volumeList)
 	r.Path("/v{version:[0-9.]+}/volumes/create").Methods("POST").HandlerFunc(p.volumeCreate)
