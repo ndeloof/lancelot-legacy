@@ -108,7 +108,11 @@ func (p *Proxy) ownsExec(id string) bool {
 func (p *Proxy) ownsImage(id string) bool {
 	p.mux.Lock()
 	defer p.mux.Unlock()
-	return contains(p.images, id)
+	owned := contains(p.images, id)
+	if !owned {
+		fmt.Printf("Now onwing requested image %s\n", id)
+	}
+	return owned
 }
 
 
@@ -128,9 +132,10 @@ func (p *Proxy) RegisterRoutes(r *mux.Router) {
 	r.Path("/v{version:[0-9.]+}/events").Methods("GET").HandlerFunc(p.events)
 
 	r.Path("/v{version:[0-9.]+}/images/json").Methods("GET").HandlerFunc(p.imagesList)
+	r.Path("/v{version:[0-9.]+}/images/create").Methods("POST").HandlerFunc(p.imagesCreate)
 	r.Path("/v{version:[0-9.]+}/images/{name:.*}/json").Methods("GET").HandlerFunc(p.imageInspect)
-       	r.Path("/v{version:[0-9.]+}/images/create").Methods("POST").HandlerFunc(p.imagesCreate)
- 	r.Path("/v{version:[0-9.]+}/images/{name:.*}/push").Methods("POST").HandlerFunc(p.imagesPush)
+	r.Path("/v{version:[0-9.]+}/images/{name:.*}/tag").Methods("POST").HandlerFunc(p.imageTag)
+ 	r.Path("/v{version:[0-9.]+}/images/{name:.*}/push").Methods("POST").HandlerFunc(p.imagePush)
 
 	r.Path("/v{version:[0-9.]+}/containers/json").Methods("GET").HandlerFunc(p.containerList)
 	r.Path("/v{version:[0-9.]+}/containers/{name:.*}/json").Methods("GET").HandlerFunc(p.containerInspect)

@@ -71,11 +71,10 @@ func main() {
 	}
 	
 	go srv.Serve(listener)
-	fmt.Println("Lancelot Proxy started")
+	fmt.Println("Lancelot Proxy started\n")
 
 
 	args := os.Args[1:]
-	fmt.Println(args)
 	if len(args) > 0 {
 		if err := runSidecarContainer(args, cgroup, me); err != nil {
 			panic(err)

@@ -131,9 +131,45 @@ func (p *Proxy) imagesCreate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *Proxy) imagesPush(w http.ResponseWriter, r *http.Request) {
+func (p *Proxy) imageTag(w http.ResponseWriter, r *http.Request) {
+	if err := httputils.ParseForm(r); err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	name := mux.Vars(r)["name"]
+	if !p.ownsImage(name) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	tag := r.Form.Get("tag")
+	if err := p.client.ImageTag(context.Background(), name, tag); err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	p.addImage(tag)
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (p *Proxy) imagePush(w http.ResponseWriter, r *http.Request) {
+
+	if err := httputils.ParseForm(r); err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	tag := r.Form.Get("tag")
+	name := mux.Vars(r)["name"]
+
+	if tag != "" {
+		// CLI is inconsistent and pass tag as a parameter, while "tag" du pass image:tag as URI path
+		name = name+":"+tag
+	}
+
 	if !p.ownsImage(name) {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -153,6 +189,4 @@ func (p *Proxy) imagesPush(w http.ResponseWriter, r *http.Request) {
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 	io.Copy(output, reader)
-
-
 }
