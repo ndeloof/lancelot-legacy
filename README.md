@@ -117,7 +117,31 @@ Proxy is attached to a single client and as such can easily track all resources 
 on host. As a result we can block any attempt to access a container created by another user.
 For images, we have no way to check if user has legitimate access to an image, or this one has been pulled / built
 by another user with distinct credentials. So we have to try pulling from registry to check permissions.  
-                                                                                    
+
+- [x] docker build (with parent cgroup inheritence)
+- [x] docker run (with parent cgroup inheritence, bind mount prohibited)
+- [x] docker ps (filtered)
+- [x] docker inspect
+- [x] docker exec
+- [x] docker logs
+- [x] docker cp
+- [x] docker stop
+- [x] docker images
+- [x] docker image pull
+- [x] docker image push
+- [x] docker image inspect
+- [x] docker tag
+- [x] docker events 
+- [x] docker info (minimal)
+- [x] docker version
+- [x] docker volumes create
+- [x] docker volumes inspect
+- [x] docker volumes ls (filtered)
+- [x] docker volumes rm
+
+
+
+
 
 ### Internal details
 
