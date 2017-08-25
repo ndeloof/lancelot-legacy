@@ -162,5 +162,8 @@ armored security and an aquatic references required for anything related to Dock
 
 Lancelot also is a main character in French sitcom [Kaamelott](https://fr.wikipedia.org/wiki/Kaamelott), known for
 being strict and inflexible.
+
+Last but not least, Lancelot is the name for a [famous beer drafted in britanny](http://brasserie-lancelot.bzh/)
+
  
  
