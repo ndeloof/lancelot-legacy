@@ -69,7 +69,7 @@ func (p *Proxy) containerInspect(w http.ResponseWriter, r *http.Request) {
 	name, err := p.ownsContainer(vars["name"]);
 	if err != nil {
 		fmt.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
@@ -233,7 +233,7 @@ func (p *Proxy) containerStart(w http.ResponseWriter, r *http.Request) {
 	name, err := p.ownsContainer(vars["name"]);
 	if err != nil {
 		fmt.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
@@ -255,7 +255,7 @@ func (p *Proxy) containerAttach(w http.ResponseWriter, r *http.Request) {
 	name, err := p.ownsContainer(vars["name"]);
 	if err != nil {
 		fmt.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
@@ -321,7 +321,7 @@ func (p *Proxy) containerResize(w http.ResponseWriter, r *http.Request) {
 	name, err := p.ownsContainer(vars["name"]);
 	if err != nil {
 		fmt.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
@@ -358,17 +358,19 @@ func (p *Proxy) containerResize(w http.ResponseWriter, r *http.Request) {
 
 func (p *Proxy) containerLogs(w http.ResponseWriter, r *http.Request) {
 
-	/* TODO
 	vars := mux.Vars(r)
 	name, err := p.ownsContainer(vars["name"]);
 	if err != nil {
-		fmt.Println(err.Error())		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	stdout, stderr := httputils.BoolValue(r, "stdout"), httputils.BoolValue(r, "stderr")
 	if !(stdout || stderr) {
-		return fmt.Errorf("Bad parameters: you must choose at least one stream")
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	reader, err := p.client.ContainerLogs(context.Background(), name, types.ContainerLogsOptions{
@@ -382,12 +384,14 @@ func (p *Proxy) containerLogs(w http.ResponseWriter, r *http.Request) {
 	});
 
 	if err != nil {
-		fmt.Println(err.Error())		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	*/
-
+	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
+	io.Copy(output, reader)
 }
 
 func (p *Proxy) containerStop(w http.ResponseWriter, r *http.Request) {
@@ -395,7 +399,7 @@ func (p *Proxy) containerStop(w http.ResponseWriter, r *http.Request) {
 	name, err := p.ownsContainer(vars["name"]);
 	if err != nil {
 		fmt.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
@@ -428,7 +432,7 @@ func (p *Proxy) containerKill(w http.ResponseWriter, r *http.Request) {
 	name, err := p.ownsContainer(vars["name"]);
 	if err != nil {
 		fmt.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
@@ -444,7 +448,7 @@ func (p *Proxy) containerExecCreate(w http.ResponseWriter, r *http.Request) {
 	name, err := p.ownsContainer(vars["name"]);
 	if err != nil {
 		fmt.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
